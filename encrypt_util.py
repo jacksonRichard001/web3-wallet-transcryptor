@@ -2,14 +2,15 @@ import nacl.utils
 import nacl.public
 import base64
 
+
 def encrypt(receiver_public_key: str, msg: str) -> dict:
     """
     Encrypt a message using X25519-XSalsa20-Poly1305
-    
+
     Args:
         receiver_public_key (str): Base64 encoded public key of the receiver
         msg (str): Message to encrypt
-    
+
     Returns:
         dict: Encrypted message data containing version, nonce, ephemeral public key, and ciphertext
     """
@@ -27,7 +28,7 @@ def encrypt(receiver_public_key: str, msg: str) -> dict:
         raise ValueError("Bad public key")
 
     # Convert message to bytes
-    msg_bytes = msg.encode('utf-8')
+    msg_bytes = msg.encode("utf-8")
 
     # Generate random nonce
     nonce = nacl.utils.random(nacl.public.Box.NONCE_SIZE)
@@ -36,13 +37,17 @@ def encrypt(receiver_public_key: str, msg: str) -> dict:
     box = nacl.public.Box(ephemeral_keypair, receiver_key)
 
     # Encrypt the message
-    encrypted_message = box.encrypt(msg_bytes, nonce)[24:]  # Remove nonce from returned bytes
+    encrypted_message = box.encrypt(msg_bytes, nonce)[
+        24:
+    ]  # Remove nonce from returned bytes
 
     output = {
         "version": "x25519-xsalsa20-poly1305",
-        "nonce": base64.b64encode(nonce).decode('utf-8'),
-        "ephemPublicKey": base64.b64encode(ephemeral_keypair.public_key.encode()).decode('utf-8'),
-        "ciphertext": base64.b64encode(encrypted_message).decode('utf-8')
+        "nonce": base64.b64encode(nonce).decode("utf-8"),
+        "ephemPublicKey": base64.b64encode(
+            ephemeral_keypair.public_key.encode()
+        ).decode("utf-8"),
+        "ciphertext": base64.b64encode(encrypted_message).decode("utf-8"),
     }
 
-    return output 
+    return output
