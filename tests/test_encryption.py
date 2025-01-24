@@ -23,6 +23,7 @@ def valid_keypair():
 def test_encryption_create():
     """Test the factory method creates an instance"""
     encryption = Encryption.create()
+    encryption = encryption  # To avoid linting error()
     assert isinstance(encryption, Encryption)
 
 
