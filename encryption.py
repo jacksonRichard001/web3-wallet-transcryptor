@@ -89,6 +89,14 @@ class Encryption:
         except Exception as e:
             raise EncryptionError(f"Failed to encode data: {str(e)}")
 
+    @staticmethod
+    def _decode_base64(data: str) -> bytes:
+        """Safely decode base64 string to bytes"""
+        try:
+            return base64.b64decode(data)
+        except Exception as e:
+            raise EncryptionError(f"Failed to decode data: {str(e)}")
+
     def encrypt_message(self, receiver_public_key: str, msg: str) -> Dict[str, str]:
         """
         Encrypt a message using X25519-XSalsa20-Poly1305
@@ -147,6 +155,67 @@ class Encryption:
             raise
         except Exception as e:
             raise EncryptionError(f"Encryption failed: {str(e)}")
+
+    def decrypt_message(self, private_key: str, encrypted_data: Dict[str, str]) -> str:
+        """
+        Decrypt a message using X25519-XSalsa20-Poly1305
+
+        Args:
+            private_key: Base64 encoded private key of the receiver
+            encrypted_data: Dictionary containing the encrypted message data
+
+        Returns:
+            Decrypted message as string
+
+        Raises:
+            EncryptionError: If decryption fails
+            InvalidKeyError: If private key is invalid
+            InvalidMessageError: If encrypted data is invalid
+        """
+        try:
+            # Validate encrypted data structure
+            required_fields = {"version", "nonce", "ephemPublicKey", "ciphertext"}
+            if not all(field in encrypted_data for field in required_fields):
+                raise InvalidMessageError("Missing required fields in encrypted data")
+
+            if encrypted_data["version"] != self.VERSION:
+                raise InvalidMessageError(
+                    f"Unsupported version: {encrypted_data['version']}"
+                )
+
+            # Decode private key
+            try:
+                priv_key_bytes = self._decode_base64(private_key)
+                receiver_private_key = nacl.public.PrivateKey(priv_key_bytes)
+            except Exception as e:
+                raise InvalidKeyError(f"Invalid private key: {str(e)}")
+
+            # Decode message components
+            try:
+                nonce = self._decode_base64(encrypted_data["nonce"])
+                ephem_public_key = nacl.public.PublicKey(
+                    self._decode_base64(encrypted_data["ephemPublicKey"])
+                )
+                ciphertext = self._decode_base64(encrypted_data["ciphertext"])
+            except Exception as e:
+                raise InvalidMessageError(f"Invalid message format: {str(e)}")
+
+            # Create decryption box
+            box = nacl.public.Box(receiver_private_key, ephem_public_key)
+
+            # Decrypt the message
+            decrypted_message = box.decrypt(ciphertext, nonce)
+
+            # Convert bytes to string
+            try:
+                return decrypted_message.decode("utf-8")
+            except UnicodeDecodeError as e:
+                raise EncryptionError(f"Failed to decode decrypted message: {str(e)}")
+
+        except (InvalidKeyError, InvalidMessageError):
+            raise
+        except Exception as e:
+            raise EncryptionError(f"Decryption failed: {str(e)}")
 
     @classmethod
     def create(cls) -> "Encryption":
